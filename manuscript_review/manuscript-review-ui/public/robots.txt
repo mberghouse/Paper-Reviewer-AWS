@@ -1,0 +1,13 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+Allow: /static/css/
+Allow: /static/js/
+Allow: /static/images/
+
+Disallow: /admin/
+Disallow: /api/
+Disallow: /media/
+Disallow: /static/admin/
+
+Sitemap: https://paper-reviewer.com/sitemap.xml

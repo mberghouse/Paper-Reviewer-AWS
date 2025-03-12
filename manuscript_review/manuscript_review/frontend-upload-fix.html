@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Paper Reviewer Upload Fix</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1 { color: #333; }
+        button { padding: 10px 15px; background: #4CAF50; color: white; border: none; cursor: pointer; margin: 5px 0; }
+        input { margin: 10px 0; padding: 8px; width: 100%; }
+        #status { margin-top: 20px; padding: 15px; border: 1px solid #ddd; background: #f9f9f9; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>Paper Reviewer Direct Upload</h1>
+    <p>This page bypasses the React frontend and directly uploads to S3.</p>
+    
+    <div>
+        <input type="file" id="fileInput" accept=".pdf">
+        <button id="uploadButton">Upload Manuscript</button>
+    </div>
+    
+    <div id="status">Status will appear here...</div>
+    
+    <script src="aws-sdk"></script>
+    <script>
+        // AWS Configuration
+        const awsConfig = {
+            accessKeyId: '', 
+            secretAccessKey: '',
+            region: 'us-east-1',
+            bucket: ''
+        };
+        
+        // Set up AWS SDK
+        AWS.config.update({
+            accessKeyId: awsConfig.accessKeyId,
+            secretAccessKey: awsConfig.secretAccessKey,
+            region: awsConfig.region
+        });
+        
+        const s3 = new AWS.S3();
+        
+        document.getElementById('uploadButton').addEventListener('click', async function() {
+            const fileInput = document.getElementById('fileInput');
+            const statusDiv = document.getElementById('status');
+            
+            if (!fileInput.files.length) {
+                statusDiv.innerHTML = '<div class="error">Please select a file first</div>';
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            
+            if (!file.name.endsWith('.pdf')) {
+                statusDiv.innerHTML = '<div class="error">Only PDF files are allowed</div>';
+                return;
+            }
+            
+            statusDiv.innerHTML = `<div>Uploading ${file.name}...</div>`;
+            
+            try {
+                // Step 1: Upload file directly to S3
+                const fileKey = `manuscripts/${Date.now()}-${file.name}`;
+                
+                const params = {
+                    Bucket: awsConfig.bucket,
+                    Key: fileKey,
+                    Body: file,
+                    ContentType: 'application/pdf'
+                };
+                
+                statusDiv.innerHTML += `<div>Starting S3 upload...</div>`;
+                
+                const uploadResult = await new Promise((resolve, reject) => {
+                    s3.upload(params, function(err, data) {
+                        if (err) reject(err);
+                        else resolve(data);
+                    });
+                });
+                
+                statusDiv.innerHTML += `<div class="success">S3 upload successful!</div>`;
+                statusDiv.innerHTML += `<div>File location: ${uploadResult.Location}</div>`;
+                
+                // Step 2: Notify backend about the uploaded file
+                statusDiv.innerHTML += `<div>Notifying backend...</div>`;
+                
+                const response = await fetch('https://paper-reviewer.com/upload/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        file_key: fileKey,
+                        file_name: file.name
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Backend notification failed: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                statusDiv.innerHTML += `<div class="success">Upload process complete!</div>`;
+                statusDiv.innerHTML += `<div>Manuscript ID: ${data.manuscript_id || 'Not available'}</div>`;
+                statusDiv.innerHTML += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                
+            } catch (error) {
+                console.error('Upload error:', error);
+                statusDiv.innerHTML += `<div class="error">Error: ${error.message}</div>`;
+            }
+        });
+    </script>
+</body>
+</html>

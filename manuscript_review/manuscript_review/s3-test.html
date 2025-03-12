@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>S3 Upload Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; padding: 20px; }
+        button { padding: 10px; background: #4CAF50; color: white; border: none; cursor: pointer; margin: 10px 0; }
+        input { margin: 10px 0; padding: 8px; }
+        #results { margin-top: 20px; border: 1px solid #ddd; padding: 15px; background: #f9f9f9; }
+        .error { color: red; font-weight: bold; }
+        .success { color: green; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Direct S3 Upload Tester</h1>
+    
+    <div>
+        <h2>1. Test AWS Credentials</h2>
+        <button id="testCredentials">Test AWS Credentials</button>
+        <div id="credentialsResult"></div>
+    </div>
+    
+    <div>
+        <h2>2. Upload File to S3</h2>
+        <input type="file" id="fileInput">
+        <button id="uploadButton">Upload to S3</button>
+        <div id="uploadResult"></div>
+    </div>
+    
+    <script src="aws-sdk"></script>
+    <script>
+        // AWS Configuration
+        const awsConfig = {
+            accessKeyId: '',
+            secretAccessKey: '',
+            region: 'us-east-1',
+            bucket: ''
+        };
+        
+        // Set up AWS SDK
+        AWS.config.update({
+            accessKeyId: awsConfig.accessKeyId,
+            secretAccessKey: awsConfig.secretAccessKey,
+            region: awsConfig.region
+        });
+        
+        const s3 = new AWS.S3();
+        
+        // Test credentials
+        document.getElementById('testCredentials').addEventListener('click', function() {
+            const resultDiv = document.getElementById('credentialsResult');
+            resultDiv.innerHTML = 'Testing credentials...';
+            
+            s3.listBuckets(function(err, data) {
+                if (err) {
+                    resultDiv.innerHTML = `<div class="error">Error: ${err.message}</div>`;
+                    console.error('Error testing credentials:', err);
+                } else {
+                    const bucketsList = data.Buckets.map(b => b.Name).join(', ');
+                    resultDiv.innerHTML = `
+                        <div class="success">Success! Found ${data.Buckets.length} buckets.</div>
+                        <div>Buckets: ${bucketsList}</div>
+                    `;
+                    console.log('Buckets:', data.Buckets);
+                }
+            });
+        });
+        
+        // Upload file
+        document.getElementById('uploadButton').addEventListener('click', function() {
+            const fileInput = document.getElementById('fileInput');
+            const resultDiv = document.getElementById('uploadResult');
+            
+            if (!fileInput.files.length) {
+                resultDiv.innerHTML = '<div class="error">Please select a file first</div>';
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const fileName = file.name;
+            const fileKey = 'test-uploads/' + new Date().getTime() + '-' + fileName;
+            
+            resultDiv.innerHTML = `Uploading ${fileName}...`;
+            
+            const params = {
+                Bucket: awsConfig.bucket,
+                Key: fileKey,
+                Body: file,
+                ContentType: file.type
+            };
+            
+            console.log('Starting upload with params:', params);
+            
+            s3.upload(params, function(err, data) {
+                if (err) {
+                    resultDiv.innerHTML = `<div class="error">Upload failed: ${err.message}</div>`;
+                    console.error('Upload error:', err);
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="success">Upload successful!</div>
+                        <div>File location: ${data.Location}</div>
+                        <div>File key: ${data.Key}</div>
+                    `;
+                    console.log('Upload result:', data);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

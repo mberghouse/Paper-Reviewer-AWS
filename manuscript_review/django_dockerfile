@@ -1,0 +1,56 @@
+FROM python:3.9-slim
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PIP_NO_CACHE_DIR=1
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Set work directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies in groups to avoid memory issues
+COPY requirements.txt .
+RUN pip install --no-cache-dir \
+    django==4.2.7 \
+    djangorestframework==3.14.0 \
+    django-cors-headers==4.3.0 \
+    gunicorn==21.2.0 \
+    psycopg2-binary==2.9.9
+
+RUN pip install --no-cache-dir \
+    python-dotenv==1.0.0 \
+    django-storages==1.14.2 \
+    boto3==1.29.3 \
+    botocore==1.32.3 \
+    whitenoise==6.6.0
+
+RUN pip install --no-cache-dir \
+    requests==2.31.0 \
+    pillow==10.1.0 \
+    numpy==1.26.2 \
+    pandas==2.1.3 \
+    paperscraper
+
+RUN pip install --no-cache-dir \
+    pymupdf==1.25.3 \
+    pymupdf4llm==0.0.17 \
+    openai==1.3.5
+
+RUN pip install --no-cache-dir \
+    aiohttp==3.9.1 \
+    asyncio==3.4.3 \
+    django-ratelimit==4.1.0 \
+    python-magic==0.4.27
+
+# Copy project
+COPY . .
+
+# Run migrations and start server
+CMD ["sh", "-c", "python manage.py migrate && gunicorn manuscript_review.wsgi:application --bind 0.0.0.0:8000 --workers 3"] 

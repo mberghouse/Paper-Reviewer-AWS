@@ -1,0 +1,77 @@
+{
+    "family": "paper-reviewer-backend",
+    "networkMode": "awsvpc",
+    "requiresCompatibilities": ["FARGATE"],
+    "cpu": "256",
+    "memory": "512",
+    "executionRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/ecsTaskExecutionRole",
+    "containerDefinitions": [
+        {
+            "name": "backend",
+            "image": "${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/paper-reviewer-backend:latest",
+            "essential": true,
+            "portMappings": [
+                {
+                    "containerPort": 8000,
+                    "protocol": "tcp"
+                }
+            ],
+            "environment": [
+                {
+                    "name": "DATABASE_URL",
+                    "value": "${DATABASE_URL}"
+                },
+                {
+                    "name": "DJANGO_SETTINGS_MODULE",
+                    "value": "manuscript_review.settings"
+                },
+                {
+                    "name": "ALLOWED_HOSTS",
+                    "value": "*.paper-reviewer.com"
+                },
+                {
+                    "name": "PYTHONUNBUFFERED",
+                    "value": "1"
+                },
+                {
+                    "name": "DEBUG",
+                    "value": "False"
+                },
+                {
+                    "name": "AWS_STORAGE_BUCKET_NAME",
+                    "value": ""
+                },
+                {
+                    "name": "AWS_ACCESS_KEY_ID",
+                    "value": "${AWS_ACCESS_KEY_ID}"
+                },
+                {
+                    "name": "AWS_SECRET_ACCESS_KEY",
+                    "value": "${AWS_SECRET_ACCESS_KEY}"
+                },
+                {
+                    "name": "AWS_S3_REGION_NAME",
+                    "value": "us-east-1"
+                },
+                {
+                    "name": "CORS_ALLOWED_ORIGINS",
+                    "value": "https://www.paper-reviewer.com,https://paper-reviewer.com"
+                }
+            ],
+            "command": [
+                "sh",
+                "-c",
+                "python manage.py migrate && gunicorn manuscript_review.wsgi:application --bind 0.0.0.0:8000 --workers 3"
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/paper-reviewer-backend",
+                    "awslogs-region": "us-east-1",
+                    "awslogs-stream-prefix": "ecs",
+                    "awslogs-create-group": "true"
+                }
+            }
+        }
+    ]
+} 
